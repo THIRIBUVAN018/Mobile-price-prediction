@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mobile Price Range Classification</title>
+    <style>
+      :root {
+        --ink: #162033;
+        --muted: #6d7788;
+        --line: #e5e9f0;
+        --bg: linear-gradient(135deg, #fff7ed 0%, #eef6ff 35%, #f5f3ff 100%);
+        --surface: rgba(255,255,255,0.9);
+        --accent: #7c3aed;
+        --accent2: #0ea5e9;
+        --accent3: #f97316;
+        --success: #0f766e;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      .topbar {
+        padding: 34px 6vw 26px;
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 20px;
+        background: rgba(255,255,255,0.7);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(124,58,237,0.15);
+      }
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: .14em;
+        font-weight: 800;
+        color: var(--accent);
+      }
+      h1, h2, h3, h4, p { margin-top: 0; }
+      h1 { margin: 6px 0; font-size: clamp(26px, 3vw, 42px); }
+      h2 { font-size: clamp(24px, 3vw, 38px); margin-bottom: 12px; max-width: 780px; }
+      .topbar p, .hero p { color: var(--muted); }
+      .model-pill {
+        border: 1px solid rgba(124,58,237,0.2);
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        background: linear-gradient(90deg, rgba(124,58,237,0.12), rgba(14,165,233,0.12));
+        box-shadow: 0 8px 20px rgba(124,58,237,0.08);
+      }
+      .model-pill span {
+        display: inline-block;
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #10b981; margin-right: 8px;
+        box-shadow: 0 0 10px rgba(16,185,129,0.8);
+      }
+      main { width: min(1200px, 88vw); margin: 0 auto; }
+      .flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 13px;
+        padding: 28px 0;
+        overflow-x: auto;
+      }
+      .flow-item {
+        display: flex; align-items: center; gap: 9px; white-space: nowrap;
+        color: var(--muted); font-size: 13px;
+      }
+      .flow-item b { color: var(--accent); font-size: 12px; }
+      .arrow { color: #b8c0cd; }
+      .hero {
+        margin-bottom: 20px;
+        padding: 32px;
+        border-radius: 24px;
+        background: linear-gradient(120deg, rgba(124,58,237,0.12), rgba(14,165,233,0.1), rgba(249,115,22,0.1));
+        display: flex; justify-content: space-between; gap: 30px; align-items: center;
+        box-shadow: 0 16px 30px rgba(124,58,237,0.08);
+      }
+      .hero-stat { text-align: right; min-width: 130px; }
+      .hero-stat strong { display: block; font-size: 38px; }
+      .hero-stat span { color: var(--muted); font-size: 12px; }
+      .workspace {
+        display: grid;
+        grid-template-columns: 1.55fr .85fr;
+        gap: 20px;
+      }
+      form, .result-panel {
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(124,58,237,0.14);
+        border-radius: 20px;
+        padding: 26px;
+        box-shadow: 0 15px 30px rgba(30,41,59,0.06);
+      }
+      .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+      .lookup-box {
+        display: flex; align-items: end; gap: 12px; margin-bottom: 10px;
+      }
+      .lookup-field { flex: 1; }
+      .lookup-field span {
+        display: block; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 8px;
+      }
+      .lookup-box input { margin-top: 0; }
+      .lookup-summary {
+        margin-bottom: 18px; padding: 10px 12px; border-radius: 10px; background: #eef2ff; color: var(--ink); font-size: 12px; border: 1px solid #c7d2fe;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      label { font-size: 12px; color: var(--muted); font-weight: 700; }
+      input, select {
+        display: block; width: 100%; margin-top: 7px;
+        padding: 11px 12px; border: 1px solid var(--line);
+        border-radius: 10px; background: #fff; color: var(--ink);
+        font: inherit;
+      }
+      input:focus, select:focus { outline: 2px solid #c7d2fe; border-color: var(--accent); }
+      button {
+        border: 0; cursor: pointer; font: inherit; font-weight: 800;
+      }
+      .secondary {
+        padding: 9px 13px; border: 1px solid var(--line); background: #fff; border-radius: 9px;
+        color: var(--ink); font-size: 12px;
+      }
+      .predict {
+        width: 100%; margin-top: 22px; padding: 14px 18px;
+        border-radius: 12px; color: white;
+        background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+        box-shadow: 0 12px 24px rgba(124,58,237,0.25);
+      }
+      .predict span { float: right; }
+      .error { color: #b91c1c; font-size: 12px; margin: 10px 0 0; }
+      .empty { color: var(--muted); font-size: 13px; line-height: 1.6; padding: 20px 0; }
+      .range-label { font-size: 34px; font-weight: 900; margin-top: 18px; }
+      .confidence { color: var(--muted); font-size: 12px; margin: 7px 0 20px; }
+      .confidence span { color: var(--success); font-weight: 900; }
+      .hidden { display: none; }
+      .prob-list { display: grid; gap: 9px; }
+      .prob-row { display: grid; grid-template-columns: 100px 1fr 45px; gap: 8px; align-items: center; font-size: 11px; }
+      .bar { height: 7px; background: #edf0f5; border-radius: 99px; overflow: hidden; }
+      .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+      footer {
+        border-top: 1px solid var(--line); background: #fff;
+        padding: 20px 6vw; display: flex; justify-content: space-between;
+        color: var(--muted); font-size: 11px;
+      }
+      @media (max-width: 900px) {
+        .workspace { grid-template-columns: 1fr; }
+        .form-grid { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 650px) {
+        .topbar, .hero, footer { flex-direction: column; align-items: flex-start; }
+        .hero-stat { text-align: left; }
+        .form-grid { grid-template-columns: 1fr; }
+        .lookup-box { flex-direction: column; align-items: stretch; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">AI & DATA SCIENCE PROJECT</span>
+        <h1>Mobile Price Range Classification</h1>
+        <p>Single-file GitHub-ready website</p>
+      </div>
+      <div class="model-pill"><span></span> Model: Browser Prediction</div>
+    </header>
+
+    <main>
+      <section class="flow">
+        <div class="flow-item"><b>01</b><span>Enter Mobile Name</span></div>
+        <div class="arrow">→</div>
+        <div class="flow-item"><b>02</b><span>Load Specs</span></div>
+        <div class="arrow">→</div>
+        <div class="flow-item"><b>03</b><span>Predict</span></div>
+        <div class="arrow">→</div>
+        <div class="flow-item"><b>04</b><span>Price Range</span></div>
+        <div class="arrow">→</div>
+        <div class="flow-item"><b>05</b><span>Explain Result</span></div>
+      </section>
+
+      <section class="hero">
+        <div>
+          <span class="eyebrow">PREDICTION WORKSPACE</span>
+          <h2>Classify a mobile from its name or technical specifications.</h2>
+          <p>Use a known mobile name to load specs automatically or fill in the features manually.</p>
+        </div>
+        <div class="hero-stat">
+          <strong id="accuracy">Ready</strong>
+          <span>browser model</span>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <form id="predictionForm">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">INPUT</span>
+              <h3>Mobile Specifications</h3>
+            </div>
+          </div>
+
+          <div class="lookup-box">
+            <label class="lookup-field">
+              <span>Phone name</span>
+              <input id="phoneLookup" list="phoneSuggestions" type="text" placeholder="Try iPhone 15 Pro or Galaxy S24 Ultra" />
+            </label>
+            <button type="button" id="lookupBtn" class="secondary">Find Specs</button>
+          </div>
+          <datalist id="phoneSuggestions"></datalist>
+          <div id="lookupSummary" class="lookup-summary hidden">No phone selected yet.</div>
+
+          <div class="form-grid">
+            <label>Battery Power (mAh)<input name="battery_power" type="number" step="1" min="1" required></label>
+            <label>RAM (MB)<input name="ram" type="number" step="1" min="1" required></label>
+            <label>Internal Memory (GB)<input name="int_memory" type="number" step="1" min="1" required></label>
+            <label>Primary Camera (MP)<input name="pc" type="number" step="1" min="0" required></label>
+            <label>Front Camera (MP)<input name="fc" type="number" step="1" min="0" required></label>
+            <label>Clock Speed (GHz)<input name="clock_speed" type="number" step="0.1" min="0" required></label>
+            <label>Processor Cores<input name="n_cores" type="number" step="1" min="1" required></label>
+            <label>Mobile Weight (g)<input name="mobile_wt" type="number" step="1" min="1" required></label>
+            <label>Pixel Height<input name="px_height" type="number" step="1" min="0" required></label>
+            <label>Pixel Width<input name="px_width" type="number" step="1" min="0" required></label>
+            <label>Screen Height (cm)<input name="sc_h" type="number" step="0.1" min="0" required></label>
+            <label>Screen Width (cm)<input name="sc_w" type="number" step="0.1" min="0" required></label>
+            <label>Mobile Depth (cm)<input name="m_dep" type="number" step="0.1" min="0" required></label>
+            <label>Talk Time (hours)<input name="talk_time" type="number" step="0.1" min="0" required></label>
+
+            <label>Bluetooth
+              <select name="blue"><option value="1">Yes</option><option value="0">No</option></select>
+            </label>
+            <label>Dual SIM
+              <select name="dual_sim"><option value="1">Yes</option><option value="0">No</option></select>
+            </label>
+            <label>4G
+              <select name="four_g"><option value="1">Yes</option><option value="0">No</option></select>
+            </label>
+            <label>3G
+              <select name="three_g"><option value="1">Yes</option><option value="0">No</option></select>
+            </label>
+            <label>Touch Screen
+              <select name="touch_screen"><option value="1">Yes</option><option value="0">No</option></select>
+            </label>
+            <label>Wi-Fi
+              <select name="wifi"><option value="1">Yes</option><option value="0">No</option></select>
+            </label>
+          </div>
+
+          <button class="predict" type="submit">Predict Price Range <span>→</span></button>
+          <p id="error" class="error"></p>
+        </form>
+
+        <aside class="result-panel">
+          <span class="eyebrow">OUTPUT</span>
+          <h3>Prediction Result</h3>
+          <div id="resultEmpty" class="empty">Enter the specifications and run the model.</div>
+
+          <div id="result" class="result hidden">
+            <div class="range-label" id="rangeLabel">—</div>
+            <div class="confidence"><span id="confidence">0%</span> model confidence</div>
+            <div class="prob-list" id="probabilities"></div>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      <span>Mobile Price Range Classification</span>
+      <span>Single-file GitHub ready</span>
+    </footer>
+
+    <script>
+      const phoneCatalog = [
+        { brand: 'Apple', model: 'iPhone 15 Pro', battery_power: 3274, ram: 8192, int_memory: 256, pc: 48, fc: 12, clock_speed: 3.5, n_cores: 6, mobile_wt: 187, px_height: 2556, px_width: 1179, sc_h: 6.1, sc_w: 2.8, m_dep: 0.8, talk_time: 20, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Samsung', model: 'Galaxy S24 Ultra', battery_power: 5000, ram: 12288, int_memory: 512, pc: 200, fc: 12, clock_speed: 3.4, n_cores: 8, mobile_wt: 233, px_height: 3120, px_width: 1440, sc_h: 6.8, sc_w: 3.4, m_dep: 0.9, talk_time: 30, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Xiaomi', model: 'Redmi Note 13 Pro', battery_power: 5100, ram: 8192, int_memory: 256, pc: 200, fc: 16, clock_speed: 2.7, n_cores: 8, mobile_wt: 187, px_height: 2400, px_width: 1080, sc_h: 6.7, sc_w: 3.1, m_dep: 0.8, talk_time: 29, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Motorola', model: 'Moto G54', battery_power: 6000, ram: 8192, int_memory: 128, pc: 50, fc: 16, clock_speed: 2.2, n_cores: 8, mobile_wt: 192, px_height: 2400, px_width: 1080, sc_h: 6.5, sc_w: 3.0, m_dep: 0.9, talk_time: 36, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Samsung', model: 'Galaxy A15', battery_power: 5000, ram: 4096, int_memory: 128, pc: 50, fc: 13, clock_speed: 2.2, n_cores: 8, mobile_wt: 200, px_height: 2340, px_width: 1080, sc_h: 6.5, sc_w: 3.1, m_dep: 0.8, talk_time: 28, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Apple', model: 'iPhone 13', battery_power: 3240, ram: 4096, int_memory: 128, pc: 12, fc: 12, clock_speed: 3.2, n_cores: 6, mobile_wt: 174, px_height: 2532, px_width: 1170, sc_h: 6.1, sc_w: 2.8, m_dep: 0.7, talk_time: 19, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Realme', model: 'Realme Narzo 60', battery_power: 5000, ram: 8192, int_memory: 128, pc: 64, fc: 16, clock_speed: 2.4, n_cores: 8, mobile_wt: 190, px_height: 2400, px_width: 1080, sc_h: 6.7, sc_w: 3.1, m_dep: 0.8, talk_time: 32, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Nokia', model: 'Nokia C32', battery_power: 5000, ram: 4096, int_memory: 64, pc: 50, fc: 8, clock_speed: 2.0, n_cores: 8, mobile_wt: 196, px_height: 1600, px_width: 720, sc_h: 6.5, sc_w: 3.0, m_dep: 0.8, talk_time: 24, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Samsung', model: 'Galaxy A03', battery_power: 5000, ram: 3072, int_memory: 32, pc: 48, fc: 5, clock_speed: 2.0, n_cores: 8, mobile_wt: 196, px_height: 1600, px_width: 720, sc_h: 6.5, sc_w: 3.0, m_dep: 0.8, talk_time: 24, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'POCO', model: 'Poco X5 Pro', battery_power: 5000, ram: 8192, int_memory: 256, pc: 108, fc: 16, clock_speed: 2.9, n_cores: 8, mobile_wt: 181, px_height: 2400, px_width: 1080, sc_h: 6.7, sc_w: 3.1, m_dep: 0.8, talk_time: 29, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'OnePlus', model: 'OnePlus 11R', battery_power: 5000, ram: 12288, int_memory: 256, pc: 50, fc: 16, clock_speed: 3.0, n_cores: 8, mobile_wt: 198, px_height: 3216, px_width: 1440, sc_h: 6.7, sc_w: 3.1, m_dep: 0.9, talk_time: 30, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 },
+        { brand: 'Google', model: 'Pixel 8', battery_power: 4575, ram: 8192, int_memory: 128, pc: 50, fc: 10, clock_speed: 3.0, n_cores: 8, mobile_wt: 187, px_height: 2400, px_width: 1080, sc_h: 6.2, sc_w: 2.9, m_dep: 0.8, talk_time: 24, blue: 1, dual_sim: 1, four_g: 1, three_g: 1, touch_screen: 1, wifi: 1 }
+      ];
+
+      function normalizeName(value) {
+        return (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      }
+
+      function setForm(data) {
+        Object.entries(data).forEach(([key, value]) => {
+          const field = document.querySelector(`[name="${key}"]`);
+          if (field) field.value = value;
+        });
+      }
+
+      function collectForm() {
+        const data = {};
+        new FormData(document.getElementById('predictionForm')).forEach((value, key) => {
+          const num = Number(value);
+          data[key] = Number.isFinite(num) ? num : value;
+        });
+        return data;
+      }
+
+      function buildExplanation(priceRange, specs) {
+        const values = { ...specs };
+        const reasons = [];
+
+        if (priceRange === 'Very High Cost' || priceRange === 'High Cost') {
+          if (Number(values.ram || 0) >= 8000) reasons.push('RAM is high, which is typical for premium devices.');
+          if (Number(values.battery_power || 0) >= 4000) reasons.push('Battery capacity is large, supporting a higher price tier.');
+          if (Number(values.pc || 0) >= 40 || Number(values.fc || 0) >= 12) reasons.push('The camera setup is strong and usually appears in more expensive phones.');
+          if (Number(values.sc_h || 0) >= 6.5) reasons.push('The display is large and premium-sized, adding value to the phone.');
+        } else if (priceRange === 'Low Cost') {
+          if (Number(values.ram || 0) <= 4000) reasons.push('RAM is relatively low, which is common in budget models.');
+          if (Number(values.int_memory || 0) <= 64) reasons.push('Storage is limited, reducing the overall value expectation.');
+          if (Number(values.pc || 0) <= 50) reasons.push('The camera hardware is more basic than premium alternatives.');
+          if (Number(values.battery_power || 0) <= 5000) reasons.push('Battery capacity is modest, which matches a lower market category.');
+        } else {
+          if (Number(values.ram || 0) >= 4000) reasons.push('RAM is solid for everyday performance and mainstream usage.');
+          if (Number(values.battery_power || 0) >= 4500) reasons.push('Battery size is good enough for regular use and longer screen time.');
+          if (Number(values.pc || 0) >= 50) reasons.push('Camera quality is decent for a mid-range smartphone.');
+        }
+
+        if (reasons.length === 0) reasons.push('The device has a balanced profile between value and performance.');
+        return `${reasons.slice(0, 3).join(' ')} Overall, this combination places the phone in the ${priceRange} category.`;
+      }
+
+      function predictPriceFromSpecs(specs) {
+        const score = [
+          Number(specs.ram || 0) >= 8000 ? 35 : Number(specs.ram || 0) >= 4000 ? 18 : 5,
+          Number(specs.battery_power || 0) >= 5000 ? 24 : Number(specs.battery_power || 0) >= 3000 ? 14 : 4,
+          Number(specs.int_memory || 0) >= 128 ? 18 : Number(specs.int_memory || 0) >= 32 ? 10 : 3,
+          Number(specs.pc || 0) >= 100 ? 20 : Number(specs.pc || 0) >= 40 ? 10 : 4,
+          Number(specs.sc_h || 0) >= 6.5 ? 12 : Number(specs.sc_h || 0) >= 5.5 ? 7 : 2,
+          Number(specs.mobile_wt || 0) > 200 ? 4 : 0
+        ].reduce((a, b) => a + b, 0);
+
+        let price_range = 'Low Cost';
+        let confidence = 72;
+
+        if (score >= 80) {
+          price_range = 'Very High Cost';
+          confidence = 92;
+        } else if (score >= 60) {
+          price_range = 'High Cost';
+          confidence = 86;
+        } else if (score >= 35) {
+          price_range = 'Medium Cost';
+          confidence = 80;
+        }
+
+        const classProbabilities = {
+          'Low Cost': price_range === 'Low Cost' ? 88 : price_range === 'Medium Cost' ? 22 : price_range === 'High Cost' ? 8 : 2,
+          'Medium Cost': price_range === 'Medium Cost' ? 88 : price_range === 'Low Cost' ? 22 : price_range === 'High Cost' ? 10 : 4,
+          'High Cost': price_range === 'High Cost' ? 88 : price_range === 'Very High Cost' ? 18 : price_range === 'Medium Cost' ? 16 : 10,
+          'Very High Cost': price_range === 'Very High Cost' ? 90 : price_range === 'High Cost' ? 20 : 8
+        };
+
+        return { price_range, confidence, class_probabilities: classProbabilities };
+      }
+
+      function matchPhoneName(query) {
+        const norm = normalizeName(query);
+        if (!norm) return null;
+
+        const exact = phoneCatalog.find((item) => normalizeName(`${item.brand} ${item.model}`) === norm);
+        if (exact) return exact;
+
+        const partial = phoneCatalog.find((item) => normalizeName(`${item.brand} ${item.model}`).includes(norm) || norm.includes(normalizeName(`${item.brand} ${item.model}`)));
+        if (partial) return partial;
+
+        return phoneCatalog.find((item) => item.model.toLowerCase().includes(query.toLowerCase()) || item.brand.toLowerCase().includes(query.toLowerCase())) || null;
+      }
+
+      function populateSuggestions() {
+        const datalist = document.getElementById('phoneSuggestions');
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        phoneCatalog.forEach((item) => {
+          const option = document.createElement('option');
+          option.value = `${item.brand} ${item.model}`;
+          datalist.appendChild(option);
+        });
+      }
+
+      function loadPhoneSpecsIntoForm() {
+        const input = document.getElementById('phoneLookup');
+        const query = input ? input.value.trim() : '';
+        const summary = document.getElementById('lookupSummary');
+        const error = document.getElementById('error');
+
+        if (!query) {
+          if (summary) {
+            summary.textContent = 'Enter a mobile name first.';
+            summary.classList.remove('hidden');
+          }
+          if (error) error.textContent = 'Enter a mobile name first.';
+          return;
+        }
+
+        const found = matchPhoneName(query);
+
+        if (!found) {
+          if (summary) {
+            summary.textContent = `No phone match found for "${query}".`;
+            summary.classList.remove('hidden');
+          }
+          if (error) error.textContent = 'Try a phone name from the suggestions list.';
+          return;
+        }
+
+        const { brand, model, ...specs } = found;
+        setForm(specs);
+        if (summary) {
+          summary.textContent = `Loaded specs for ${brand} ${model}.`;
+          summary.classList.remove('hidden');
+        }
+        if (error) error.textContent = '';
+      }
+
+      function renderPredictionResult(resultData) {
+        const resultEl = document.getElementById('result');
+        const resultEmpty = document.getElementById('resultEmpty');
+        const rangeLabel = document.getElementById('rangeLabel');
+        const confidence = document.getElementById('confidence');
+        const probabilities = document.getElementById('probabilities');
+
+        if (!resultEl || !rangeLabel || !confidence || !probabilities) return;
+
+        resultEmpty.classList.add('hidden');
+        resultEl.classList.remove('hidden');
+        rangeLabel.textContent = resultData.price_range;
+        confidence.textContent = `${resultData.confidence}%`;
+        probabilities.innerHTML = '';
+
+        Object.entries(resultData.class_probabilities).forEach(([label, value]) => {
+          const row = document.createElement('div');
+          row.className = 'prob-row';
+          row.innerHTML = `
+            <span>${label}</span>
+            <div class='bar'><i style='width:${Math.max(value, 4)}%'></i></div>
+            <b>${value}%</b>
+          `;
+          probabilities.appendChild(row);
+        });
+
+        const error = document.getElementById('error');
+        if (error) error.textContent = '';
+      }
+
+      function handlePredictionSubmit(event) {
+        event.preventDefault();
+        const payload = collectForm();
+        const prediction = predictPriceFromSpecs(payload);
+        const lookupInput = document.getElementById('phoneLookup');
+        const name = lookupInput && lookupInput.value.trim() ? lookupInput.value.trim() : 'Manual input';
+
+        const finalResult = {
+          price_range: prediction.price_range,
+          confidence: prediction.confidence,
+          class_probabilities: prediction.class_probabilities,
+          explanation: buildExplanation(prediction.price_range, payload),
+          mobileName: name
+        };
+
+        const explanationArea = document.createElement('div');
+        explanationArea.className = 'prob-row explanation-box';
+        explanationArea.style.marginTop = '18px';
+        explanationArea.style.gridTemplateColumns = '1fr';
+        explanationArea.style.fontSize = '12px';
+        explanationArea.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:#f5f3ff;border:1px solid #ddd6fe;color:#1f2937;line-height:1.5;">${finalResult.explanation}</div>`;
+
+        const probabilitiesBlock = document.getElementById('probabilities');
+        if (probabilitiesBlock) {
+          const existingExplanation = probabilitiesBlock.querySelector('.explanation-box');
+          if (existingExplanation) existingExplanation.remove();
+          probabilitiesBlock.appendChild(explanationArea);
+        }
+
+        renderPredictionResult(finalResult);
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        populateSuggestions();
+        const lookupBtn = document.getElementById('lookupBtn');
+        if (lookupBtn) {
+          lookupBtn.addEventListener('click', loadPhoneSpecsIntoForm);
+        }
+
+        const form = document.getElementById('predictionForm');
+        if (form) {
+          form.addEventListener('submit', handlePredictionSubmit);
+        }
+      });
+    </script>
+  </body>
+</html>
