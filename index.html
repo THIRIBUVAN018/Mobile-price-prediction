@@ -57,6 +57,44 @@
         background: #10b981; margin-right: 8px;
         box-shadow: 0 0 10px rgba(16,185,129,0.8);
       }
+      .tabs {
+        display: flex;
+        gap: 10px;
+        padding: 18px 6vw 0;
+        background: rgba(255,255,255,0.7);
+      }
+      .tab-button {
+        padding: 12px 18px;
+        border: 1px solid rgba(124,58,237,0.18);
+        border-bottom: 0;
+        border-radius: 12px 12px 0 0;
+        background: rgba(255,255,255,0.65);
+        color: var(--muted);
+      }
+      .tab-button.active {
+        color: white;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        border-color: transparent;
+      }
+      .tab-panel.hidden { display: none; }
+      .catalog-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 20px;
+      }
+      .catalog-card, .info-card {
+        padding: 20px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.88);
+        border: 1px solid rgba(14,165,233,0.18);
+        box-shadow: 0 12px 25px rgba(30,41,59,0.06);
+      }
+      .catalog-card strong { display: block; color: var(--accent); margin-bottom: 6px; }
+      .catalog-card span { color: var(--muted); font-size: 12px; }
+      .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+      .info-card b { color: var(--accent3); display: block; margin-bottom: 8px; }
+      .info-card p { color: var(--muted); font-size: 13px; line-height: 1.6; margin-bottom: 0; }
       main { width: min(1200px, 88vw); margin: 0 auto; }
       .flow {
         display: flex;
@@ -155,9 +193,12 @@
       }
       @media (max-width: 650px) {
         .topbar, .hero, footer { flex-direction: column; align-items: flex-start; }
+        .tabs { overflow-x: auto; padding-left: 6vw; }
+        .tab-button { white-space: nowrap; }
         .hero-stat { text-align: left; }
         .form-grid { grid-template-columns: 1fr; }
         .lookup-box { flex-direction: column; align-items: stretch; }
+        .catalog-grid, .info-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -171,7 +212,14 @@
       <div class="model-pill"><span></span> Model: Browser Prediction</div>
     </header>
 
+    <nav class="tabs" aria-label="Main sections">
+      <button class="tab-button active" type="button" data-tab="predictorTab">Predictor</button>
+      <button class="tab-button" type="button" data-tab="catalogTab">Phone Catalog</button>
+      <button class="tab-button" type="button" data-tab="howTab">How It Works</button>
+    </nav>
+
     <main>
+      <div id="predictorTab" class="tab-panel">
       <section class="flow">
         <div class="flow-item"><b>01</b><span>Enter Mobile Name</span></div>
         <div class="arrow">→</div>
@@ -267,6 +315,33 @@
           </div>
         </aside>
       </section>
+      </div>
+
+      <section id="catalogTab" class="tab-panel hidden">
+        <section class="hero">
+          <div>
+            <span class="eyebrow">PHONE CATALOG</span>
+            <h2>Choose a phone profile to explore its expected price tier.</h2>
+            <p>These sample profiles are available in the browser model.</p>
+          </div>
+        </section>
+        <div class="catalog-grid" id="catalogGrid"></div>
+      </section>
+
+      <section id="howTab" class="tab-panel hidden">
+        <section class="hero">
+          <div>
+            <span class="eyebrow">HOW IT WORKS</span>
+            <h2>A quick, transparent prediction flow.</h2>
+            <p>The browser model scores the phone using the most useful technical features.</p>
+          </div>
+        </section>
+        <div class="info-grid">
+          <article class="info-card"><b>01 / Load</b><p>Select a known phone or enter its specifications manually.</p></article>
+          <article class="info-card"><b>02 / Score</b><p>RAM, battery, storage, camera, display size, and weight contribute to the score.</p></article>
+          <article class="info-card"><b>03 / Open Result</b><p>Press Predict to open a colorful result report in a separate browser tab.</p></article>
+        </div>
+      </section>
     </main>
 
     <footer>
@@ -313,6 +388,12 @@
       function buildExplanation(priceRange, specs) {
         const values = { ...specs };
         const reasons = [];
+        const ram = Number(values.ram || 0);
+        const storage = Number(values.int_memory || 0);
+        const battery = Number(values.battery_power || 0);
+        const camera = Number(values.pc || 0);
+        const display = Number(values.sc_h || 0);
+        const featureSummary = `The model considered ${ram.toLocaleString()} MB RAM, ${storage} GB storage, a ${battery} mAh battery, a ${camera} MP primary camera, and a ${display}-inch display.`;
 
         if (priceRange === 'Very High Cost' || priceRange === 'High Cost') {
           if (Number(values.ram || 0) >= 8000) reasons.push('RAM is high, which is typical for premium devices.');
@@ -331,7 +412,15 @@
         }
 
         if (reasons.length === 0) reasons.push('The device has a balanced profile between value and performance.');
-        return `${reasons.slice(0, 3).join(' ')} Overall, this combination places the phone in the ${priceRange} category.`;
+        const tierGuidance = priceRange === 'Very High Cost'
+          ? 'This profile is strongest in performance, storage, camera, or display features and matches a premium device.'
+          : priceRange === 'High Cost'
+            ? 'This profile has several premium specifications, but not enough of them to reach the highest tier.'
+            : priceRange === 'Medium Cost'
+              ? 'This is a balanced profile suited to everyday use and mainstream smartphone buyers.'
+              : 'The lower score is mainly associated with more basic memory, storage, camera, or display specifications.';
+
+        return `${featureSummary} ${reasons.slice(0, 3).join(' ')} ${tierGuidance} Overall, this combination places the phone in the ${priceRange} category.`;
       }
 
       function predictPriceFromSpecs(specs) {
@@ -453,8 +542,49 @@
           probabilities.appendChild(row);
         });
 
+        const explanationBox = document.createElement('div');
+        explanationBox.className = 'explanation-box';
+        explanationBox.style.marginTop = '18px';
+        explanationBox.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:#f5f3ff;border:1px solid #ddd6fe;color:#1f2937;line-height:1.5;">${resultData.explanation}</div>`;
+        probabilities.appendChild(explanationBox);
+
         const error = document.getElementById('error');
         if (error) error.textContent = '';
+      }
+
+      function openResultTab(resultData) {
+        renderPredictionResult(resultData);
+        const probabilityRows = Object.entries(resultData.class_probabilities).map(([label, value]) => `
+          <div class="prob-row">
+            <span>${label}</span>
+            <div class="bar"><i style="width:${Math.max(value, 4)}%"></i></div>
+            <b>${value}%</b>
+          </div>
+        `).join('');
+
+        const reportHtml = `<!DOCTYPE html>
+          <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Prediction Result</title>
+          <style>
+            :root { --ink:#162033; --muted:#6d7788; --purple:#7c3aed; --blue:#0ea5e9; --orange:#f97316; }
+            * { box-sizing:border-box; } body { margin:0; min-height:100vh; font-family:Inter,ui-sans-serif,system-ui,sans-serif; color:var(--ink); background:linear-gradient(135deg,#fff7ed,#eef6ff 45%,#f5f3ff); }
+            header { padding:30px 7vw 24px; background:rgba(255,255,255,.72); border-bottom:1px solid rgba(124,58,237,.15); }
+            .eyebrow { color:var(--purple); font-size:11px; font-weight:800; letter-spacing:.14em; } h1 { margin:8px 0 0; font-size:clamp(28px,5vw,54px); }
+            main { width:min(820px,88vw); margin:40px auto; } .result-card { padding:34px; border-radius:24px; background:rgba(255,255,255,.92); box-shadow:0 20px 50px rgba(30,41,59,.12); border:1px solid rgba(124,58,237,.14); }
+            .range { margin:20px 0 6px; font-size:clamp(34px,7vw,70px); font-weight:900; background:linear-gradient(90deg,var(--purple),var(--blue),var(--orange)); color:transparent; background-clip:text; }
+            .confidence { color:var(--muted); margin-bottom:30px; } .confidence b { color:#0f766e; } .prob-list { display:grid; gap:12px; }
+            .prob-row { display:grid; grid-template-columns:120px 1fr 45px; gap:10px; align-items:center; font-size:13px; } .bar { height:9px; background:#edf0f5; border-radius:99px; overflow:hidden; } .bar i { display:block; height:100%; background:linear-gradient(90deg,var(--purple),var(--blue),var(--orange)); }
+            .explanation { margin-top:28px; padding:16px; border-radius:14px; color:#334155; background:#fff7ed; border:1px solid #fed7aa; line-height:1.6; } .back { display:inline-block; margin-top:24px; color:var(--purple); font-weight:800; text-decoration:none; }
+          </style></head><body><header><span class="eyebrow">MOBILE PRICE RANGE CLASSIFICATION</span><h1>Prediction Report</h1></header>
+          <main><section class="result-card"><span class="eyebrow">BROWSER MODEL RESULT</span><div class="range">${resultData.price_range}</div><div class="confidence"><b>${resultData.confidence}%</b> model confidence</div><div class="prob-list">${probabilityRows}</div><div class="explanation">${resultData.explanation}</div><a class="back" href="javascript:window.close()">Close result tab</a></section></main></body></html>`;
+        const reportUrl = URL.createObjectURL(new Blob([reportHtml], { type: 'text/html' }));
+        const resultWindow = window.open(reportUrl, '_blank');
+        if (!resultWindow) {
+          renderPredictionResult(resultData);
+          const error = document.getElementById('error');
+          if (error) error.textContent = 'The result tab was blocked, so the report is shown here. Allow pop-ups to open it in a new tab.';
+        }
+        setTimeout(() => URL.revokeObjectURL(reportUrl), 60000);
       }
 
       function handlePredictionSubmit(event) {
@@ -472,27 +602,41 @@
           mobileName: name
         };
 
-        const resultPanel = document.getElementById('result');
-        const explanationArea = document.createElement('div');
-        explanationArea.className = 'prob-row';
-        explanationArea.style.marginTop = '18px';
-        explanationArea.style.gridTemplateColumns = '1fr';
-        explanationArea.style.fontSize = '12px';
-        explanationArea.innerHTML = `<div style="padding:10px 12px;border-radius:10px;background:#f5f3ff;border:1px solid #ddd6fe;color:#1f2937;line-height:1.5;">${finalResult.explanation}</div>`;
-
-        const probabilitiesBlock = document.getElementById('probabilities');
-        if (probabilitiesBlock) {
-          const existingExplanation = probabilitiesBlock.querySelector('.explanation-box');
-          if (existingExplanation) existingExplanation.remove();
-          explanationArea.classList.add('explanation-box');
-          probabilitiesBlock.appendChild(explanationArea);
-        }
-
-        renderPredictionResult(finalResult);
+        openResultTab(finalResult);
       }
 
       document.addEventListener('DOMContentLoaded', () => {
         populateSuggestions();
+        const tabs = document.querySelectorAll('.tab-button');
+        const panels = document.querySelectorAll('.tab-panel');
+        tabs.forEach((tab) => {
+          tab.addEventListener('click', () => {
+            tabs.forEach((item) => item.classList.toggle('active', item === tab));
+            panels.forEach((panel) => panel.classList.toggle('hidden', panel.id !== tab.dataset.tab));
+          });
+        });
+
+        const catalogGrid = document.getElementById('catalogGrid');
+        if (catalogGrid) {
+          catalogGrid.innerHTML = phoneCatalog.map((item, index) => `
+            <article class="catalog-card"><strong>${item.brand} ${item.model}</strong><span>${item.ram / 1024} GB RAM · ${item.int_memory} GB storage · ${item.battery_power} mAh</span><button type="button" class="secondary catalog-use" data-index="${index}" style="margin-top:14px">Use this profile</button></article>
+          `).join('');
+          catalogGrid.querySelectorAll('.catalog-use').forEach((button) => {
+            button.addEventListener('click', () => {
+              const item = phoneCatalog[Number(button.dataset.index)];
+              const phoneLookup = document.getElementById('phoneLookup');
+              if (phoneLookup) phoneLookup.value = `${item.brand} ${item.model}`;
+              loadPhoneSpecsIntoForm();
+              document.querySelector('[data-tab="predictorTab"]').click();
+            });
+          });
+        }
+        const firstPhone = phoneCatalog[0];
+        const phoneLookup = document.getElementById('phoneLookup');
+        if (phoneLookup && firstPhone) {
+          phoneLookup.value = `${firstPhone.brand} ${firstPhone.model}`;
+          loadPhoneSpecsIntoForm();
+        }
         const lookupBtn = document.getElementById('lookupBtn');
         if (lookupBtn) {
           lookupBtn.addEventListener('click', loadPhoneSpecsIntoForm);
